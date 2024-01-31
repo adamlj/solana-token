@@ -1,0 +1,28 @@
+version: '3'
+
+services:
+  app:
+    build:
+      context: ./app
+    volumes:
+      - ./app:/app
+      - node_modules:/app/node_modules
+    ports:
+      - 80:80
+    environment:
+      - PORT=80
+  solana:    
+    build:
+      context: ./solana
+    image: solana-setup
+    ports:
+      - "8899:8899"
+      - "8900:8900"
+    volumes:
+      - ./solana:/solana
+      - test-ledger:/solana/test-ledger
+      - ./solana/id.json:/root/.config/solana/id.json
+
+volumes:
+  node_modules:
+  test-ledger:
