@@ -122,8 +122,7 @@ describe("token", () => {
         userAtaOurToken: userAtaOurToken,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID
       })
       .signers([user])
       .rpc();
@@ -132,8 +131,37 @@ describe("token", () => {
 
     // Fetch and log details
     console.log("\nAmount deposited in the vault: ", (await provider.connection.getTokenAccountBalance(vaultAtaUsdc)).value.uiAmount, "  USDC");
-    console.log("\User Our Tokens: ", (await provider.connection.getTokenAccountBalance(userAtaOurToken)).value.uiAmount, " Tokens");
-    console.log("\User USDC tokens: ", (await provider.connection.getTokenAccountBalance(userAtaUsdc)).value.uiAmount, " Tokens");
+    console.log("\nUser Our Tokens: ", (await provider.connection.getTokenAccountBalance(userAtaOurToken)).value.uiAmount, " Tokens");
+    console.log("\nUser USDC tokens: ", (await provider.connection.getTokenAccountBalance(userAtaUsdc)).value.uiAmount, " Tokens");
+  });
+
+  it("Do withdraw", async () => {
+    const userAtaOurToken = getAssociatedTokenAddressSync(ourToken, user.publicKey);
+
+    vaultAtaUsdc = getAssociatedTokenAddressSync(usdc, vault, true);
+
+    const tx = await program.methods.withdraw(new anchor.BN(1000000))
+      .accounts({
+        user: user.publicKey,
+        usdc: usdc,
+        vault: vault,
+        vaultAtaUsdc: vaultAtaUsdc,
+        userAtaUsdc: userAtaUsdc,
+        ourToken: ourToken,
+        userAtaOurToken: userAtaOurToken,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID
+      })
+      .signers([user])
+      .rpc();
+
+    console.log("\n\Token withdraw Created! TxID: ", tx);
+
+    // Fetch and log details
+    console.log("\nAmount deposited in the vault: ", (await provider.connection.getTokenAccountBalance(vaultAtaUsdc)).value.uiAmount, "  USDC");
+    console.log("\nUser Our Tokens: ", (await provider.connection.getTokenAccountBalance(userAtaOurToken)).value.uiAmount, " Tokens");
+    console.log("\nUser USDC tokens: ", (await provider.connection.getTokenAccountBalance(userAtaUsdc)).value.uiAmount, " Tokens");
   });
 
 

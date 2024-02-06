@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{TokenInterface, Mint, TokenAccount, TransferChecked, transfer_checked, mint_to, MintTo};
+use anchor_spl::token_interface::{TokenInterface, Mint, TokenAccount, TransferChecked, transfer_checked, mint_to, MintTo, burn, Burn};
 use anchor_spl::associated_token::AssociatedToken;
 use crate::state::Vault;
 use anchor_lang::solana_program::pubkey;
@@ -9,7 +9,7 @@ use anchor_lang::solana_program::pubkey;
 // pub const USDC: Pubkey = pubkey!("5kPLgEdCvumyEBgSWoFGTpzQzd8d89kMUsN1UtxPezzM");
 
 #[derive(Accounts)]
-pub struct Deposit<'info> {
+pub struct Withdraw<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 
@@ -66,45 +66,27 @@ pub struct Deposit<'info> {
     pub system_program: Program<'info, System>, 
 }
 
-impl<'info> Deposit<'info> {
-    pub fn deposit(&mut self, bumps: &DepositBumps, amount: u64) -> Result<()> {
-        self.transfer(amount);
-
-        self.mint(bumps, amount)
+impl<'info> Withdraw<'info> {
+    pub fn withdraw(&mut self, bumps: &WithdrawBumps, amount: u64) -> Result<()> {
+        self.burn(amount);
+        self.transfer(bumps, amount)
     }
 
-    pub fn transfer(&mut self, amount: u64) -> Result<()> {
-        // Create CPI context
-        let cpi_accounts = TransferChecked {
-            from: self.user_ata_usdc.to_account_info(),
-            to: self.vault_ata_usdc.to_account_info(),
-            authority: self.user.to_account_info(),
-            mint: self.usdc.to_account_info(),
-        };
-
-        // Fetch CPI program
-        let cpi_program = self.token_program.to_account_info();
-
-        // Create CPI context
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-
-        // Transfer deposit amount to vault by invoking transfer_checked
-        transfer_checked(cpi_ctx, amount, self.usdc.decimals)
-    }
-
-    pub fn mint(&mut self, bumps: &DepositBumps, amount: u64) -> Result<()> {
+    pub fn transfer(&mut self, bumps: &WithdrawBumps, amount: u64) -> Result<()> {
         let signer_seeds: [&[&[u8]];1] = [
             &[
-                b"our_token", 
-                &[bumps.our_token]
+                b"vault", 
+                &[bumps.vault]
             ]
         ];
 
-        // Create CPI accounts
-        let cpi_accounts = MintTo {
-            mint: self.our_token.to_account_info(),
-            to: self.user_ata_our_token.to_account_info(),
-            authority: self.our_token.to_account_info()
+
+        // Create CPI context
+        let cpi_accounts = TransferChecked {
+            from: self.vault_ata_usdc.to_account_info(),
+            to: self.user_ata_usdc.to_account_info(),
+            authority: self.vault.to_account_info(),
+            mint: self.usdc.to_account_info(),
         };
 
         // Fetch CPI program
@@ -113,8 +95,24 @@ impl<'info> Deposit<'info> {
         // Create CPI context
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, &signer_seeds);
 
-        // Mint
-        mint_to(cpi_ctx, amount * 1000)
-
+        // Transfer deposit amount to vault by invoking transfer_checked
+        transfer_checked(cpi_ctx, amount, self.usdc.decimals)
     }
+
+    pub fn burn(&mut self, amount: u64) -> Result<()> {
+        let cpi_accounts = Burn {
+            from: self.user_ata_our_token.to_account_info(),
+            authority: self.user.to_account_info(),
+            mint: self.our_token.to_account_info(),
+        };
+
+        // Fetch CPI program
+        let cpi_program = self.token_program.to_account_info();
+
+        // Create CPI context
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+
+        burn(cpi_ctx, amount* 1000)
+    }
+
 }
